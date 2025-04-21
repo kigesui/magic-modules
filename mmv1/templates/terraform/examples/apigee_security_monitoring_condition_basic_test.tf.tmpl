@@ -77,13 +77,40 @@ resource "google_apigee_addons_config" "apigee_org_security_addons_config" {
   }
 }
 
-resource "google_apigee_security_monitoring_condition" "{{$.PrimaryResourceId}}" {
-  org_id       = google_apigee_organization.apigee_org.id
-  condition_id = "tf-test-conditoin"
-  profile      = "google-default"
-  scope        = google_apigee_environment.apigee_environment.name
-  include_all_resources {}
+resource "google_apigee_security_profile_v2" "security_profile_v2" {
+  org_id      = google_apigee_organization.apigee_org.id
+  profile_id  = "tf-test-profile"
+  description = "terraform test description"
+  profile_assessment_configs {
+    assessment = "auth-policies-check"
+    weight     = "MAJOR"
+  }
+  profile_assessment_configs {
+    assessment = "mediation-policies-check"
+    weight     = "MODERATE"
+  }
+  profile_assessment_configs {
+    assessment = "threat-policies-check"
+    weight     = "MINOR"
+  }
   depends_on = [
     google_apigee_addons_config.apigee_org_security_addons_config
   ]
+}
+
+resource "google_apigee_security_monitoring_condition" "{{$.PrimaryResourceId}}" {
+  org_id       = google_apigee_organization.apigee_org.id
+  condition_id = "tf-test-condition"
+  profile      = google_apigee_security_profile_v2.security_profile_v2.profile_id
+  scope        = google_apigee_environment.apigee_environment.name
+  include_all_resources {}
+  depends_on = [
+    google_apigee_addons_config.apigee_org_security_addons_config,
+    google_apigee_security_profile_v2.security_profile_v2
+  ]
+}
+
+resource "time_sleep" "wait_30_minutes" {
+  create_duration = "1800s"
+  depends_on = [google_apigee_security_monitoring_condition.{{$.PrimaryResourceId}}]
 }
